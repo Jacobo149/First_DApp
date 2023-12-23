@@ -17,6 +17,9 @@ contract Election {
     // Store Candidates Count
     uint public candidatesCount;
 
+    // Event emitted when a vote occurs
+    event Voted(address indexed voter, uint indexed candidateId);
+
     constructor() public {
         addCandidate("Candidate 1");
         addCandidate("Candidate 2");
@@ -39,5 +42,13 @@ contract Election {
 
         // update candidate vote Count
         candidates[_candidateId].voteCount++;
+
+        // emit the Voted event
+        emit Voted(msg.sender, _candidateId);
+    }
+
+    // Fallback function to receive Ether
+    function () external payable {
+        // Handle incoming Ether (if needed)
     }
 }

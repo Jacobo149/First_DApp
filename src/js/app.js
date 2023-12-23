@@ -9,16 +9,29 @@ App = {
 
   initWeb3: function() {
     if (typeof web3 !== 'undefined') {
-      // If a web3 instance is already provided by Meta Mask.
-      App.web3Provider = web3.currentProvider;
-      web3 = new Web3(web3.currentProvider);
+        // Use MetaMask provider or any other injected provider
+        App.web3Provider = web3.currentProvider;
+        web3 = new Web3(App.web3Provider);
+    } else if (window.ethereum) {
+        // Modern DApp browsers
+        App.web3Provider = window.ethereum;
+        web3 = new Web3(App.web3Provider);
+        // Request account access if needed
+        window.ethereum.enable().then(function () {
+            // User has allowed account access to DApp
+            console.log("Connected to MetaMask");
+        }).catch(function (error) {
+            // User denied account access to DApp
+            console.error("User denied account access:", error);
+        });
     } else {
-      // Specify default instance if no web3 instance provided
-      App.web3Provider = new Web3.providers.HttpProvider('http://localhost:7545');
-      web3 = new Web3(App.web3Provider);
+        // Fallback to localhost provider
+        App.web3Provider = new Web3.providers.HttpProvider('http://127.0.0.1:7545');
+        web3 = new Web3(App.web3Provider);
     }
     return App.initContract();
-  },
+},
+
 
   initContract: function() {
     $.getJSON("Election.json", function(election) {
@@ -35,10 +48,10 @@ App = {
     var electionInstance;
     var loader = $("#loader");
     var content = $("#content");
-
+  
     loader.show();
     content.hide();
-
+  
     // Load account data
     web3.eth.getCoinbase(function(err, account) {
       if (err === null) {
@@ -46,7 +59,7 @@ App = {
         $("#accountAddress").html("Your Account: " + account);
       }
     });
-
+  
     // Load contract data
     App.contracts.Election.deployed().then(function(instance) {
       electionInstance = instance;
@@ -54,25 +67,51 @@ App = {
     }).then(function(candidatesCount) {
       var candidatesResults = $("#candidatesResults");
       candidatesResults.empty();
-
+  
+      var candidatesSelect = $('#candidatesSelect');
+      candidatesSelect.empty();
+  
       for (var i = 1; i <= candidatesCount; i++) {
         electionInstance.candidates(i).then(function(candidate) {
           var id = candidate[0];
           var name = candidate[1];
           var voteCount = candidate[2];
-
+  
           // Render candidate Result
           var candidateTemplate = "<tr><th>" + id + "</th><td>" + name + "</td><td>" + voteCount + "</td></tr>"
           candidatesResults.append(candidateTemplate);
+  
+          // Render candidate ballot option
+          var candidateOption = "<option value='" + id + "' >" + name + "</ option>"
+          candidatesSelect.append(candidateOption);
         });
       }
-
+      return electionInstance.voters(App.account);
+    }).then(function(hasVoted) {
+      // Do not allow a user to vote
+      if(hasVoted) {
+        $('form').hide();
+      }
       loader.hide();
       content.show();
     }).catch(function(error) {
       console.warn(error);
     });
+  },
+
+  castVote: function() {
+    var candidateId = $('#candidatesSelect').val();
+    App.contracts.Election.deployed().then(function(instance) {
+      return instance.vote(candidateId, { from: App.account });
+    }).then(function(result) {
+      // Wait for votes to update
+      $("#content").hide();
+      $("#loader").show();
+    }).catch(function(err) {
+      console.error(err);
+    });
   }
+
 };
 
 $(function() {
