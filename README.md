@@ -22,4 +22,4 @@ truffle migrate
 ```
 npm run dev
 ```
-The following commands will run a development environment, opening a webpage on localhost3000 to interact with contracts.
+This will run a development environment, opening a webpage on localhost3000 to interact with contracts.
